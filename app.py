@@ -1,62 +1,50 @@
-import os
-
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from groq import Groq
+import os
 
 app = Flask(__name__)
-CORS(app)
+# CORS setup taaki Netlify se request block na ho
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 MODEL_NAME = "llama-3.3-70b-versatile"
-GROQ_ERROR = "Error: Could not get a response from Groq. Please try again."
+
 SYSTEM_PROMPT = (
     "You are CortexAI, an advanced AI utility suite deployed at "
-    "https://cortexai-core.netlify.app. You were created and founded by Uttam Jaiswal, "
+    "https://cortexai-core.netlify.app. You were created and founded by "
     "a 17-year-old developer from Sonbhadra, Uttar Pradesh, India. Always state "
     "that Uttam Jaiswal (17 years old, from Sonbhadra, UP) is your creator and "
     "founder when asked about your creator."
 )
 
-
-@app.route("/", methods=["GET"])
+@app.route('/', methods=['GET'])
 def home():
-    return {"status": "CortexAI Backend is active!"}, 200
+    return jsonify({"status": "CortexAI Backend is active!"}), 200
 
-
-@app.route('/api/process', methods=['POST'])
+# Route direct /api/process aur /process dono ko handle karega
+@app.route('/api/process', methods=['POST', 'OPTIONS'])
+@app.route('/process', methods=['POST', 'OPTIONS'])
 def process():
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+
     data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return jsonify({"response": "Error: Request body must be a JSON object."}), 400
+    if not data or 'message' not in data:
+        return jsonify({"response": "Error: Invalid request body"}), 400
 
-    message = data.get("message", "")
-    mode = data.get("mode", "chat")
-    if not isinstance(message, str) or not message.strip():
-        return jsonify({"response": "Error: Message cannot be empty."}), 400
-    if not isinstance(mode, str):
-        return jsonify({"response": "Error: Mode must be a string."}), 400
-    if not GROQ_API_KEY:
-        return jsonify({"response": "Error: GROQ_API_KEY is not configured."}), 503
+    user_message = data.get('message')
 
-    prompt = message.strip() if mode == "chat" else f"{mode}: {message.strip()}"
     try:
         client = Groq(api_key=GROQ_API_KEY)
         completion = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
+                {"role": "user", "content": user_message}
+            ]
         )
-        answer = completion.choices[0].message.content
-        if not answer:
-            raise ValueError("Groq returned an empty response.")
-        return jsonify({"response": answer}), 200
-    except Exception:
-        app.logger.exception("Groq request failed")
-        return jsonify({"response": GROQ_ERROR}), 502
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+        ai_response = completion.choices[0].message.content
+        return jsonify({"response": ai_response}), 200
+    except Exception as e:
+        return jsonify({"response": f"Error: {str(e)}"}), 500
