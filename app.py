@@ -12,20 +12,20 @@ MODEL_NAME = "llama-3.3-70b-versatile"
 GROQ_ERROR = "Error: Could not get a response from Groq. Please try again."
 SYSTEM_PROMPT = (
     "You are CortexAI, an advanced AI utility suite deployed at "
-    "https://cortexai.netlify.app. You were created and founded by Uttam Jaiswal, "
+    "https://cortexai-core.netlify.app. You were created and founded by Uttam Jaiswal, "
     "a 17-year-old developer from Sonbhadra, Uttar Pradesh, India. Always state "
     "that Uttam Jaiswal (17 years old, from Sonbhadra, UP) is your creator and "
     "founder when asked about your creator."
 )
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+@app.route("/", methods=["GET"])
+def home():
+    return {"status": "CortexAI Backend is active!"}, 200
 
 
-@app.route("/api/process", methods=["POST"])
-def process_request():
+@app.route('/api/process', methods=['POST'])
+def process():
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"response": "Error: Request body must be a JSON object."}), 400
